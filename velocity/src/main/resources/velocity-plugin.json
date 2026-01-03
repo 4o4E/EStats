@@ -1,0 +1,9 @@
+{
+  "id": "estats-velocity",
+  "name": "EStatsVelocity",
+  "version": "${version}",
+  "authors": [
+    "404E"
+  ],
+  "main": "top.e404.estats.EStatsVelocity"
+}

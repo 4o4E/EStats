@@ -1,0 +1,21 @@
+name: EStats
+version: ${version}
+main: top.e404.estats.EStats
+api-version: 1.13
+authors: [ 404E ]
+commands:
+  estats:
+    description: 插件主命令
+    aliases:
+      - es
+libraries:
+  - com.zaxxer:HikariCP:7.0.2
+  - org.springframework:spring-expression:7.0.2
+  - net.bytebuddy:byte-buddy:1.18.3
+  - net.bytebuddy:byte-buddy-agent:1.18.3
+  - com.mysql:mysql-connector-j:9.5.0
+  - com.clickhouse:clickhouse-jdbc:0.9.5
+permissions:
+  estats.admin:
+    default: op
+    description: 允许使用插件管理指令

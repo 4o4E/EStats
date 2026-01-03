@@ -1,0 +1,114 @@
+# 若设置为true则会在后台输出检查的详细信息
+debug: true
+
+# 默认参数
+# 使用 #serverId 使用
+variables:
+  serverId: s1
+  serverName: MyServerName
+
+# 数据库配置
+# 在driver目录下添加对应的jdbc驱动jar
+database:
+  # clickhouse
+  # url: jdbc:clickhouse://localhost:8123/default
+  # driver: com.clickhouse.jdbc.ClickHouseDriver
+  # username: your-username
+  # password: your-password
+  # mysql
+  url: jdbc:mysql://localhost:3306/your_database
+  driver: com.mysql.cj.jdbc.Driver
+  username: your_username
+  password: your_password
+  # 连接池配置
+  pool:
+    maximumPoolSize: 10
+    minimumIdle: 2
+    idleTimeout: 600000
+    maxLifetime: 1800000
+    connectionTimeout: 30000
+
+  # 初始化执行的sql语句
+  init:
+    - |-
+      CREATE TABLE IF NOT EXISTS mc_player_online (
+        uuid CHAR(32) NOT NULL COMMENT '玩家UUID',
+        name VARCHAR(18) NOT NULL COMMENT '玩家名称',
+        server VARCHAR(63) NOT NULL COMMENT '服务器ID',
+        login_time BIGINT NOT NULL COMMENT '登录时间',
+        logout_time BIGINT COMMENT '登出时间',
+        PRIMARY KEY (uuid, login_time)
+      ) ENGINE = Innodb DEFAULT CHARSET = utf8mb4 COMMENT = '玩家在线数据表';
+    - |-
+      CREATE TABLE IF NOT EXISTS mc_logs_test (
+        event_time DATETIME COMMENT '事件时间',
+        name VARCHAR(50) COMMENT '名称',
+        value VARCHAR(255) COMMENT '值'
+      ) ENGINE = Innodb DEFAULT CHARSET = utf8mb4 COMMENT = '测试日志表';
+
+# 脚本自带工具
+# #Util.getMeta getMeta(m: Metadatable, key: String): String?
+# #Util.setMeta setMeta(m: Metadatable, key: String, value: String): String
+# 脚本自带变量
+# #now System.currentTimeMillis()
+
+# 监听的事件
+event:
+  - event: org.bukkit.event.player.PlayerJoinEvent
+    # 条件表达式 满足则执行保存 不写则默认执行
+    # condition: "#event.player.hasPlayedBefore() == false"
+    # 提取的参数, 顺序对应下面的sql
+    param: |-
+      {
+        'uuid': #event.player.uniqueId.toString().replace("-", ""),
+        'name': #event.player.name,
+        'server': #serverId,
+        'login_time': #Util.setMeta(#event.player, "login_time", #now),
+        'logout_time': #now
+      }
+    # 更新数据
+    save: |-
+      insert into mc_player_online (uuid, name, server, login_time, logout_time)
+      values (${uuid}, ${name}, ${server}, ${login_time}, ${logout_time});
+
+# 定时任务
+schedule:
+  - name: UpdateLogoutTime
+    # 任务执行的cron表达式
+    cron: "* * * * *"
+    # 是否同步 默认为true 同步执行
+    sync: true
+    # 提取的参数
+    param: |-
+      #Bukkit.getOnlinePlayers().![
+        {
+          'uuid': #this.uniqueId.toString().replace("-", ""),
+          'login_time': #Util.getMeta(#this, "login_time"),
+          'logout_time': #now,
+          'server': #serverId
+        }
+      ]
+    # 更新数据
+    save: |-
+      update mc_player_online set logout_time = ${logout_time}
+      where uuid = ${uuid} and login_time = ${login_time} and server = '${server}';
+
+# 监听的方法
+func:
+  - # 插件名字
+    plugin: EApi
+    # 监听的插件方法
+    method: "top.e404.estats.command.Debug#onCommand(org.bukkit.command.CommandSender, java.lang.String[])"
+    # 采集的条件 不写则默认采集
+    condition: "#args[0] != null"
+    # 提取的参数
+    param: |-
+      {
+        'name': #args[0].name,
+        'value': #args[0].toString().substring(0, 10),
+        'event_time': T(java.time.LocalDateTime).now()
+      }
+    # 更新数据
+    save: |-
+      insert into mc_logs_test (event_time, name, value)
+      values (${event_time}, ${name}, ${value});
