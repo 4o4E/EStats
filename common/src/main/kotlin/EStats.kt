@@ -4,7 +4,7 @@ import org.springframework.expression.spel.standard.SpelExpressionParser
 import org.springframework.expression.spel.support.StandardEvaluationContext
 import top.e404.estats.common.config.ConfigData
 import top.e404.estats.common.config.EventListenerConfig
-import top.e404.estats.common.db.DB
+import top.e404.estats.common.db.DbManager
 import top.e404.estats.common.listener.EventListenerManager
 import top.e404.estats.common.listener.FuncListenerManager
 import top.e404.estats.common.listener.ScheduleManager
@@ -20,9 +20,16 @@ interface EStatsCommon {
     fun debug(message: String)
     fun debug(message: () -> String)
     fun warn(message: String, throwable: Throwable? = null)
-    fun runTask(task: () -> Unit)
-    fun runTaskAsync(task: () -> Unit)
-    fun runTaskLater(delayMillis: Long, task: () -> Unit)
+
+    interface TaskHandler {
+        fun cancel()
+    }
+
+    fun runTask(task: () -> Unit): TaskHandler
+    fun runTaskAsync(task: () -> Unit): TaskHandler
+    fun runTaskTimerAsync(delay: Long, period: Long, task: () -> Unit): TaskHandler
+    fun runTaskLater(delayMillis: Long, task: () -> Unit): TaskHandler
+
     fun getCtx(root: Any? = null): StandardEvaluationContext
     fun getClassLoader(plugin: String): ClassLoader?
 
@@ -30,21 +37,18 @@ interface EStatsCommon {
     fun unregisterEventHandler(handler: EventListenerManager.EventListener<*>)
 
     fun load() {
-        DB.load()
+        DbManager.loadAll()
         FuncListenerManager.load()
         EventListenerManager.load()
         ScheduleManager.load()
+        config.queue.current.start()
     }
 
     fun stop() {
+        config.queue.current.shutdown()
         FuncListenerManager.stop()
         EventListenerManager.stop()
         ScheduleManager.stop()
-        DB.stop()
-    }
-
-    fun reload() {
-        stop()
-        load()
+        DbManager.stopAll()
     }
 }

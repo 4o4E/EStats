@@ -1,12 +1,16 @@
 package top.e404.estats.common.config
 
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import top.e404.estats.common.queue.LocalQueueSink
+import top.e404.estats.common.queue.NoQueueSink
 
 @Serializable
 data class ConfigData(
     var debug: Boolean,
     val variables: Map<String, String>,
-    val database: DatabaseConfig,
+    val databases: Map<String, DatabaseConfig>,
+    val queue: QueueConfig,
     val event: List<EventListenerConfig>,
     val func: List<FuncListenerConfig>,
     val schedule: List<ScheduleConfig>,
@@ -31,11 +35,49 @@ data class PoolConfig(
     val connectionTimeout: Long,
 )
 
+@Serializable
+data class QueueConfig(
+    val type: QueueType,
+    val local: LocalQueueConfig,
+) {
+    val current by lazy {
+        when (type) {
+            QueueType.NO -> NoQueueSink
+            QueueType.LOCAL -> LocalQueueSink
+        }
+    }
+}
+
+@Serializable
+enum class QueueType {
+    NO,
+    LOCAL,
+}
+
+/**
+ * 本地队列配置
+ * @param capacity 队列容量
+ * @param interval 处理间隔，单位毫秒
+ */
+@Serializable
+data class LocalQueueConfig(
+    val capacity: Int,
+    val interval: Long,
+    @SerialName("batch_threshold")
+    val batchThreshold: Int,
+    @SerialName("time_threshold")
+    val timeThreshold: Int,
+    @SerialName("drop_when_full")
+    val dropWhenFull: Boolean,
+)
+
+
 /**
  * 事件监听器
  * @param event 监听的事件全限定名
  * @param condition 监听器触发条件el表达式
  * @param param 监听器参数el表达式
+ * @param database 监听器使用的数据库配置名称
  * @param save 监听器结果保存sql
  */
 @Serializable
@@ -43,6 +85,7 @@ data class EventListenerConfig(
     val event: String,
     val condition: String? = null,
     val param: String,
+    val database: String,
     val save: String,
 )
 
@@ -52,6 +95,7 @@ data class EventListenerConfig(
  * @param method 监听的方法的el表达式
  * @param condition 监听器触发条件el表达式
  * @param param 监听器参数el表达式
+ * @param database 监听器使用的数据库配置名称
  * @param save 监听器结果保存sql
  */
 @Serializable
@@ -60,6 +104,7 @@ data class FuncListenerConfig(
     val method: String,
     val condition: String? = null,
     val param: String,
+    val database: String,
     val save: String,
 )
 
@@ -70,6 +115,7 @@ data class FuncListenerConfig(
  * @param sync 是否同步
  * @param condition 监听器触发条件el表达式
  * @param param 监听器参数el表达式
+ * @param database 监听器使用的数据库配置名称
  * @param save 监听器结果保存sql
  */
 @Serializable
@@ -79,5 +125,6 @@ data class ScheduleConfig(
     val sync: Boolean = true,
     val condition: String? = null,
     val param: String,
+    val database: String,
     val save: String,
 )

@@ -123,7 +123,7 @@ object FuncListenerManager {
                 if (!cond) return
 
                 val result = param.getValue(context)
-                save(result)
+                save(config.database, result)
             } catch (e: Exception) {
                 EStatsCommon.instance.warn("函数监听时出现异常: ${config.method}", e)
             }

@@ -9,45 +9,77 @@ variables:
 
 # 数据库配置
 # 在driver目录下添加对应的jdbc驱动jar
-database:
-  # clickhouse
-  # url: jdbc:clickhouse://localhost:8123/default
-  # driver: com.clickhouse.jdbc.ClickHouseDriver
-  # username: your-username
-  # password: your-password
-  # mysql
-  url: jdbc:mysql://localhost:3306/your_database
-  driver: com.mysql.cj.jdbc.Driver
-  username: your_username
-  password: your_password
-  # 连接池配置
-  pool:
-    maximumPoolSize: 10
-    minimumIdle: 2
-    idleTimeout: 600000
-    maxLifetime: 1800000
-    connectionTimeout: 30000
+databases:
+  # clickhouse:
+  #   url: jdbc:clickhouse://localhost:8123/default
+  #   driver: com.clickhouse.jdbc.ClickHouseDriver
+  #   username: your-username
+  #   password: your-password
+  #   # 连接池配置
+  #   pool:
+  #     maximumPoolSize: 10
+  #     minimumIdle: 2
+  #     idleTimeout: 600000
+  #     maxLifetime: 1800000
+  #     connectionTimeout: 30000
+  #
+  #   # 初始化执行的sql语句
+  #   init: []
+  mysql:
+    url: jdbc:mysql://localhost:3306/your_database
+    driver: com.mysql.cj.jdbc.Driver
+    username: your_username
+    password: your_password
+    # 连接池配置
+    pool:
+      maximumPoolSize: 10
+      minimumIdle: 2
+      idleTimeout: 600000
+      maxLifetime: 1800000
+      connectionTimeout: 30000
 
-  # 初始化执行的sql语句
-  init:
-    - |-
-      CREATE TABLE IF NOT EXISTS mc_player_online (
-        uuid CHAR(32) NOT NULL COMMENT '玩家UUID',
-        name VARCHAR(18) NOT NULL COMMENT '玩家名称',
-        server VARCHAR(63) NOT NULL COMMENT '服务器ID',
-        login_time BIGINT NOT NULL COMMENT '登录时间',
-        logout_time BIGINT COMMENT '登出时间',
-        PRIMARY KEY (uuid, login_time)
-      ) ENGINE = Innodb DEFAULT CHARSET = utf8mb4 COMMENT = '玩家在线数据表';
-    - |-
-      CREATE TABLE IF NOT EXISTS mc_logs_test (
-        event_time DATETIME COMMENT '事件时间',
-        name VARCHAR(50) COMMENT '名称',
-        value VARCHAR(255) COMMENT '值'
-      ) ENGINE = Innodb DEFAULT CHARSET = utf8mb4 COMMENT = '测试日志表';
+    # 初始化执行的sql语句
+    init:
+      - |-
+        CREATE TABLE IF NOT EXISTS mc_player_online (
+          uuid CHAR(32) NOT NULL COMMENT '玩家UUID',
+          name VARCHAR(18) NOT NULL COMMENT '玩家名称',
+          server VARCHAR(63) NOT NULL COMMENT '服务器ID',
+          login_time BIGINT NOT NULL COMMENT '登录时间',
+          logout_time BIGINT COMMENT '登出时间',
+          PRIMARY KEY (uuid, login_time)
+        ) ENGINE = Innodb DEFAULT CHARSET = utf8mb4 COMMENT = '玩家在线数据表';
+      - |-
+        CREATE TABLE IF NOT EXISTS mc_logs_test (
+          event_time DATETIME COMMENT '事件时间',
+          name VARCHAR(50) COMMENT '名称',
+          value VARCHAR(255) COMMENT '值'
+        ) ENGINE = Innodb DEFAULT CHARSET = utf8mb4 COMMENT = '测试日志表';
+
+# 队列配置
+queue:
+  # 队列类型
+  # NO 无队列 直接异步执行
+  # LOCAL 本地有界队列
+  type: LOCAL
+  # java自己的队列，若服务器中途重启数据会丢失
+  local:
+    # 队列容量
+    capacity: 1000
+    # 每次检查时间间隔，单位毫秒
+    interval: 1000
+    # threshold两个条件达到任意一个则触发写入
+    # 即数量达到batch_threshold或者时长达到time_threshold
+    # 每次处理数量阈值
+    batch_threshold: 200
+    # 每次处理时间阈值，单位毫秒
+    time_threshold: 60000
+    # 已满时是否丢弃 false 则不进入队列而直接异步执行
+    drop_when_full: false
 
 # 脚本自带变量
 # #now System.currentTimeMillis()
+# #server Velocity 的 proxyServer
 
 # 监听的事件
 event:
@@ -62,6 +94,8 @@ event:
         'login_time': #now,
         'logout_time': #now
       }
+    # 使用的数据源
+    database: mysql
     # 更新数据
     save: |-
       insert into mc_player_online (uuid, name, login_time, logout_time)
@@ -82,6 +116,8 @@ schedule:
           'logout_time': #now
         }
       ]
+    # 使用的数据源
+    database: mysql
     # 更新数据
     save: |-
       UPDATE mc_player_online SET logout_time = ${logout_time}
@@ -108,6 +144,8 @@ func:
         'value': #args[0].toString().substring(0, 10),
         'event_time': T(java.time.LocalDateTime).now()
       }
+    # 使用的数据源
+    database: mysql
     # 更新数据
     save: |-
       insert into mc_logs_test (event_time, name, value)

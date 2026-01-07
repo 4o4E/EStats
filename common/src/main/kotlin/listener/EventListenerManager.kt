@@ -48,7 +48,7 @@ object EventListenerManager {
                 val cond = condition?.getValue(context, Boolean::class.java) ?: true
                 if (!cond) return
                 val result = param.getValue(context)
-                save(result)
+                save(config.database, result)
             } catch (e: Exception) {
                 EStatsCommon.instance.warn("事件监听时出现异常: ${config.event}", e)
             }

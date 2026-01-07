@@ -3,9 +3,30 @@ package top.e404.estats.common.db
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import top.e404.estats.common.EStatsCommon
+import top.e404.estats.common.config.DatabaseConfig
 import java.sql.Connection
 
-object DB {
+object DbManager {
+    private val dbs = mutableMapOf<String, DB>()
+    operator fun get(dbName: String) = dbs[dbName]
+
+    fun loadAll() {
+        for ((name, config) in EStatsCommon.instance.config.databases) {
+            val db = DB(name)
+            db.load(config)
+            dbs[name] = db
+        }
+    }
+
+    fun stopAll() {
+        for ((_, db) in dbs) {
+            db.stop()
+        }
+        dbs.clear()
+    }
+}
+
+class DB(val name: String) {
     @Volatile
     private lateinit var datasource: HikariDataSource
 
@@ -19,8 +40,7 @@ object DB {
         }
     }
 
-    fun load() {
-        val config = EStatsCommon.instance.config.database
+    fun load(config: DatabaseConfig) {
         datasource = HikariConfig().apply {
             jdbcUrl = config.url
             driverClassName = config.driver
@@ -32,7 +52,7 @@ object DB {
             idleTimeout = config.pool.idleTimeout
             maxLifetime = config.pool.maxLifetime
             connectionTimeout = config.pool.connectionTimeout
-            poolName = "EStatsHikariCP"
+            poolName = "EStatsHikariCP-$name"
         }.let(::HikariDataSource)
         // init
         useDb {

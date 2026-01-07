@@ -18,10 +18,10 @@ object Reload : ECommand(
 
     override fun onCommand(sender: CommandSender, args: Array<out String>) {
         plugin.runTaskAsync {
+            EStatsCommon.instance.stop()
             Lang.load(sender)
             Config.load(sender)
-
-            EStatsCommon.instance.reload()
+            EStatsCommon.instance.load()
             sender.sendMessage(Lang["command.reload_done"])
         }
     }

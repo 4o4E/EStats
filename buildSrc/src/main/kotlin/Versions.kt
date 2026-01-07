@@ -1,6 +1,6 @@
 object Versions {
     const val GROUP = "top.e404"
-    const val VERSION = "1.1.0"
+    const val VERSION = "1.2.0"
 
     const val KOTLIN = "2.2.21"
     const val EPLUGIN = "1.4.0-SNAPSHOT"

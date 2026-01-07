@@ -63,7 +63,7 @@ object ScheduleManager {
                 val cond = condition?.getValue(context, Boolean::class.java) ?: true
                 if (!cond) return
                 val result = param.getValue(context)
-                save(result)
+                save(config.database, result)
             } catch (e: Exception) {
                 EStatsCommon.instance.warn("定时任务执行异常: ${config.param}", e)
             }

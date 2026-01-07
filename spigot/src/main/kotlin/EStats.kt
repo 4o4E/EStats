@@ -6,6 +6,7 @@ import org.bukkit.event.Event
 import org.bukkit.event.EventPriority
 import org.bukkit.event.HandlerList
 import org.bukkit.event.Listener
+import org.bukkit.scheduler.BukkitTask
 import org.springframework.expression.ParseException
 import org.springframework.expression.spel.standard.SpelExpressionParser
 import org.springframework.expression.spel.support.StandardEvaluationContext
@@ -31,6 +32,12 @@ open class EStats : EPlugin() {
 
     private object VirtualListener : Listener
 
+    class SpigotTaskHandler(val task: BukkitTask) : EStatsCommon.TaskHandler {
+        override fun cancel() = task.cancel()
+    }
+
+    fun BukkitTask.toHandler() = SpigotTaskHandler(this)
+
     init {
         PL = this
         EStatsCommon.instance = object : EStatsCommon {
@@ -41,17 +48,15 @@ open class EStats : EPlugin() {
             override fun debug(message: String) = PL.debug(message)
             override fun debug(message: () -> String) = PL.debug(true, message)
             override fun warn(message: String, throwable: Throwable?) = PL.warn(message, throwable)
-            override fun runTask(task: () -> Unit) {
-                PL.runTask { task() }
-            }
+            override fun runTask(task: () -> Unit) = PL.runTask { task() }.toHandler()
 
-            override fun runTaskAsync(task: () -> Unit) {
-                PL.runTaskAsync { task() }
-            }
+            override fun runTaskAsync(task: () -> Unit) = PL.runTaskAsync { task() }.toHandler()
 
-            override fun runTaskLater(delayMillis: Long, task: () -> Unit) {
-                PL.runTaskLater(delayMillis) { task() }
-            }
+            override fun runTaskLater(delayMillis: Long, task: () -> Unit) =
+                PL.runTaskLater(delayMillis) { task() }.toHandler()
+
+            override fun runTaskTimerAsync(delay: Long, period: Long, task: () -> Unit) =
+                PL.runTaskTimerAsync(delay, period) { task() }.toHandler()
 
             override fun getCtx(root: Any?) = StandardEvaluationContext(root).apply {
                 setVariable("Util", Util)

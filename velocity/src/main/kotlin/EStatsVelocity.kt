@@ -7,6 +7,7 @@ import com.velocitypowered.api.event.proxy.ProxyShutdownEvent
 import com.velocitypowered.api.plugin.PluginContainer
 import com.velocitypowered.api.plugin.annotation.DataDirectory
 import com.velocitypowered.api.proxy.ProxyServer
+import com.velocitypowered.api.scheduler.ScheduledTask
 import net.bytebuddy.agent.ByteBuddyAgent
 import org.bstats.velocity.Metrics
 import org.slf4j.Logger
@@ -40,6 +41,12 @@ open class EStatsVelocity @Inject constructor(
         }
     override val langManager by lazy { Lang }
 
+    class VelocityTaskHandler(val task: ScheduledTask) : EStatsCommon.TaskHandler {
+        override fun cancel() = task.cancel()
+    }
+
+    fun ScheduledTask.toHandler() = VelocityTaskHandler(this)
+
     init {
         PL = this
         EStatsCommon.instance = object : EStatsCommon {
@@ -50,17 +57,15 @@ open class EStatsVelocity @Inject constructor(
             override fun debug(message: String) = PL.debug(message)
             override fun debug(message: () -> String) = PL.debug(true, message)
             override fun warn(message: String, throwable: Throwable?) = PL.warn(message, throwable)
-            override fun runTask(task: () -> Unit) {
-                PL.runTask { task() }
-            }
+            override fun runTask(task: () -> Unit) = PL.runTask { task() }.toHandler()
 
-            override fun runTaskAsync(task: () -> Unit) {
-                PL.runTaskAsync { task() }
-            }
+            override fun runTaskAsync(task: () -> Unit) = PL.runTaskAsync { task() }.toHandler()
 
-            override fun runTaskLater(delayMillis: Long, task: () -> Unit) {
-                PL.runTaskLater(delayMillis) { task() }
-            }
+            override fun runTaskLater(delayMillis: Long, task: () -> Unit) =
+                PL.runTaskLater(delayMillis) { task() }.toHandler()
+
+            override fun runTaskTimerAsync(delay: Long, period: Long, task: () -> Unit) =
+                PL.runTaskTimerAsync(delay, period) { task() }.toHandler()
 
             override fun getCtx(root: Any?) = StandardEvaluationContext(root).apply {
                 setVariable("server", server)
